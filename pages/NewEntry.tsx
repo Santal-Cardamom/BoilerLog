@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { WaterTestEntry, BlowdownEntry, TestParameters } from '../types';
 
@@ -18,7 +17,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddBlowdownLog, s
         time: new Date().toTimeString().split(' ')[0].substring(0, 5),
         sulphite: '',
         alkalinity: '',
-        hardness: '0',
+        hardness: '',
     });
 
     const [blowdownForm, setBlowdownForm] = useState({
@@ -82,7 +81,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddBlowdownLog, s
             time: new Date().toTimeString().split(' ')[0].substring(0, 5),
             sulphite: '',
             alkalinity: '',
-            hardness: '0',
+            hardness: '',
         });
         triggerSuccessMessage();
     };
@@ -112,7 +111,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddBlowdownLog, s
             activeTab === tabName ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
         }`;
 
-    const baseInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500";
+    const baseInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900";
     const errorInputClasses = "border-red-500 ring-1 ring-red-500 focus:border-red-500 focus:ring-red-500";
 
     return (
@@ -146,6 +145,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddBlowdownLog, s
                              <div>
                                 <label htmlFor="hardness" className="block text-sm font-medium text-slate-600">Hardness</label>
                                 <select name="hardness" id="hardness" value={waterTestForm.hardness} onChange={handleWaterTestChange} required className={`${baseInputClasses} ${errors.hardness ? errorInputClasses : ''}`}>
+                                    <option value="" disabled>Select hardness...</option>
                                     <option value="0">0 ppm (Soft)</option>
                                     <option value="1">1 ppm</option>
                                     <option value="2">2+ ppm (Hard)</option>
@@ -163,19 +163,19 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddBlowdownLog, s
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label htmlFor="blowdown-date" className="block text-sm font-medium text-slate-600">Date</label>
-                                <input type="date" name="date" id="blowdown-date" value={blowdownForm.date} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"/>
+                                <input type="date" name="date" id="blowdown-date" value={blowdownForm.date} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900"/>
                             </div>
                             <div>
                                 <label htmlFor="blowdown-time" className="block text-sm font-medium text-slate-600">Time</label>
-                                <input type="time" name="time" id="blowdown-time" value={blowdownForm.time} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"/>
+                                <input type="time" name="time" id="blowdown-time" value={blowdownForm.time} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900"/>
                             </div>
                              <div className="md:col-span-2">
                                 <label htmlFor="duration" className="block text-sm font-medium text-slate-600">Duration (minutes)</label>
-                                <input type="number" name="duration" id="duration" value={blowdownForm.duration} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"/>
+                                <input type="number" name="duration" id="duration" value={blowdownForm.duration} onChange={handleBlowdownChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900"/>
                             </div>
                             <div className="md:col-span-2">
                                 <label htmlFor="reason" className="block text-sm font-medium text-slate-600">Reason / Comments</label>
-                                <textarea name="reason" id="reason" rows={4} value={blowdownForm.reason} onChange={handleBlowdownChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500"></textarea>
+                                <textarea name="reason" id="reason" rows={4} value={blowdownForm.reason} onChange={handleBlowdownChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900"></textarea>
                             </div>
                         </div>
                         <div className="flex justify-end items-center">

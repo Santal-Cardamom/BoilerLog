@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { WaterTestEntry, TestParameters } from '../types';
 import TestChart from '../components/TestChart';
 import RecentTestsTable from '../components/RecentTestsTable';
+import HistoryModal from '../components/HistoryModal';
 
 interface SummaryProps {
     waterTests: WaterTestEntry[];
@@ -10,6 +10,7 @@ interface SummaryProps {
 }
 
 const Summary: React.FC<SummaryProps> = ({ waterTests, settings }) => {
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const last10Tests = waterTests.slice(-10);
 
     return (
@@ -25,9 +26,24 @@ const Summary: React.FC<SummaryProps> = ({ waterTests, settings }) => {
                 </div>
             </div>
              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold text-slate-700 mb-4">Last 10 Water Tests</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-slate-700">Last 10 Water Tests</h3>
+                    <button 
+                        onClick={() => setIsHistoryModalOpen(true)}
+                        className="px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                    >
+                        View Full History
+                    </button>
+                </div>
                 <RecentTestsTable tests={last10Tests} settings={settings} />
             </div>
+            
+            <HistoryModal 
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                allTests={waterTests}
+                settings={settings}
+            />
         </div>
     );
 };
