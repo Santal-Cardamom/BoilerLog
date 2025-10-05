@@ -1,0 +1,5 @@
+{
+  "name": "Industrial Boiler Water Test Log",
+  "description": "A web application to log, track, and visualize industrial boiler water tests, including sulphite, alkalinity, and hardness levels, as well as boiler blowdown events. Features a summary dashboard with charts and a history table.",
+  "requestFramePermissions": []
+}
