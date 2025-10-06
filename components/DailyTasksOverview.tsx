@@ -17,6 +17,13 @@ interface TaskBoxProps {
     onClick: () => void;
 }
 
+const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const TaskBox: React.FC<TaskBoxProps> = ({ title, status, completedAt, onClick }) => {
     const statusConfig = {
         pending: {
@@ -64,7 +71,7 @@ const DailyTasksOverview: React.FC<DailyTasksOverviewProps> = ({ waterTestEntrie
     }, []);
 
     const dailyWaterTestStatus = React.useMemo(() => {
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = getLocalDateString(now);
         const latestTestToday = waterTestEntries
             .filter(e => e.date === todayStr)
             .sort((a, b) => b.time.localeCompare(a.time))
@@ -77,7 +84,7 @@ const DailyTasksOverview: React.FC<DailyTasksOverviewProps> = ({ waterTestEntrie
     }, [now, waterTestEntries]);
 
     const dailyBlowdownStatus = React.useMemo(() => {
-        const todayStr = now.toISOString().split('T')[0];
+        const todayStr = getLocalDateString(now);
         const latestBlowdownToday = waterTestEntries
             .filter(e => e.date === todayStr && e.leftSightGlass === 'Completed' && e.rightSightGlass === 'Completed' && e.bottomBlowdown === 'Completed')
             .sort((a, b) => b.time.localeCompare(a.time))
@@ -121,7 +128,7 @@ const DailyTasksOverview: React.FC<DailyTasksOverviewProps> = ({ waterTestEntrie
                 }
             `}</style>
             <div className="bg-white p-4 rounded-lg shadow-md border border-slate-200">
-                <h3 className="text-base font-semibold text-slate-800 mb-3">Tasks Overview</h3>
+                <h3 className="text-base font-semibold text-slate-800 mb-3">Overview</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <TaskBox 
                         title="Daily Boiler Water Test" 

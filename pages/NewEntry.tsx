@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, ParameterRange, EntryView } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
@@ -19,6 +18,14 @@ interface NewEntryProps {
 }
 
 type ValidationState = 'default' | 'in-spec' | 'out-of-spec';
+
+// --- Timezone-safe Date Helper ---
+const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 // --- Reusable Components ---
 const baseInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none text-slate-900 transition-colors duration-200";
@@ -65,21 +72,29 @@ const FormInput: React.FC<{ label: string, name: string, type?: string, value: a
         </div>
     );
 };
-const FormToggle: React.FC<{ label: string, name: string, value: string, options: string[], onChange: (name: string, value: string) => void }> = 
-    ({ label, name, value, options, onChange }) => (
+const FormToggle: React.FC<{ label: string, name: string, value: string, options: string[], onChange: (name: string, value: string) => void, colors?: { [key: string]: string } }> = 
+    ({ label, name, value, options, onChange, colors }) => (
     <div>
         <label className="block text-sm font-medium text-slate-600 mb-2">{label}</label>
         <div className="flex items-center space-x-2">
-            {options.map(option => (
-                <button
-                    key={option}
-                    type="button"
-                    onClick={() => onChange(name, option)}
-                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${value === option ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-                >
-                    {option}
-                </button>
-            ))}
+            {options.map(option => {
+                const isSelected = value === option;
+                let selectedClasses = 'bg-sky-600 text-white'; // Default
+                if (isSelected && colors && colors[option]) {
+                    selectedClasses = colors[option];
+                }
+                
+                return (
+                    <button
+                        key={option}
+                        type="button"
+                        onClick={() => onChange(name, option)}
+                        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${isSelected ? selectedClasses : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                    >
+                        {option}
+                    </button>
+                )
+            })}
         </div>
     </div>
 );
@@ -105,7 +120,7 @@ const getValidationState = (
 
 // --- Water Test Form ---
 const getInitialWaterTestState = () => ({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(new Date()),
     time: new Date().toTimeString().split(' ')[0].substring(0, 5),
     boilerName: 'Beel' as 'Beel' | 'Cradley',
     testedByUserId: '',
@@ -141,6 +156,7 @@ const getInitialWaterTestState = () => ({
     spotSampleTaken: false,
     compositeSampleTaken: false,
     commentText: '',
+    commentCategory: 'General' as 'General' | 'Breakdown',
 });
 
 const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], onAddCommentLog: NewEntryProps['onAddCommentLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWaterTest, onAddCommentLog, settings, onBack, onSaveSuccess }) => {
@@ -171,16 +187,6 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
         });
 
         onAddWaterTest(processedForm);
-
-        if (form.commentText.trim()) {
-            onAddCommentLog({
-                timestamp: new Date().toISOString(),
-                userId: form.testedByUserId,
-                source: 'Water Test',
-                text: form.commentText.trim(),
-            });
-        }
-        
         onSaveSuccess();
     };
 
@@ -269,8 +275,16 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
                     <div className="bg-slate-700 px-6 py-3">
                         <h3 className="text-lg font-semibold text-white">Comments</h3>
                     </div>
-                    <div className="p-6">
+                    <div className="p-6 space-y-4">
                         <textarea name="commentText" value={form.commentText} onChange={handleChange} rows={4} className={baseInputClasses} placeholder="Add any relevant comments here..."></textarea>
+                        <FormToggle 
+                            label="Comment Category" 
+                            name="commentCategory" 
+                            value={form.commentCategory} 
+                            options={['General', 'Breakdown']} 
+                            onChange={handleToggleChange}
+                            colors={{ 'Breakdown': 'bg-red-500 text-white' }}
+                        />
                     </div>
                 </div>
 
@@ -301,7 +315,7 @@ const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onCh
 const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps['onAddWeeklyEvaporationLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWeeklyEvaporationLog, settings, onBack, onSaveSuccess }) => {
     const formStartedAt = React.useRef(new Date().toISOString());
     const [form, setForm] = React.useState({
-        testDate: new Date().toISOString().split('T')[0],
+        testDate: getLocalDateString(new Date()),
         testTime: new Date().toTimeString().split(' ')[0].substring(0, 5),
         lowWaterAlarmWorked: false,
         lowLowWaterAlarmWorked: false,
@@ -362,6 +376,77 @@ const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps
                     </div>
                      <div className="flex justify-end items-center">
                         <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Log</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// --- Add Comment Form ---
+const AddCommentForm: React.FC<{ onAddCommentLog: NewEntryProps['onAddCommentLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddCommentLog, settings, onBack, onSaveSuccess }) => {
+    const [form, setForm] = React.useState({
+        userId: '',
+        category: 'General' as 'General' | 'Breakdown',
+        text: '',
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setForm(prev => ({ ...prev, [name]: value }));
+    };
+    
+    const handleToggleChange = (name: string, value: any) => {
+        setForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.text.trim() || !form.userId) {
+            alert("Please select a user and enter a comment.");
+            return;
+        }
+
+        onAddCommentLog({
+            timestamp: new Date().toISOString(),
+            userId: form.userId,
+            source: 'Manual',
+            category: form.category,
+            text: form.text.trim(),
+        });
+
+        onSaveSuccess();
+    };
+
+    return (
+        <div>
+            <BackButton onClick={onBack} />
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-200">
+                <div className="bg-slate-700 px-8 py-4">
+                    <h2 className="text-xl font-bold text-white">Add Comment</h2>
+                </div>
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <FormInput label="Authorized User Name" name="userId" value={form.userId} onChange={handleChange} required>
+                        <option value="" disabled>Select User...</option>
+                        {settings.authorizedUsers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                    </FormInput>
+
+                    <div>
+                        <label htmlFor="text" className="block text-sm font-medium text-slate-600">Comment</label>
+                        <textarea name="text" id="text" value={form.text} onChange={handleChange} required rows={5} className={baseInputClasses} placeholder="Enter your comment..."></textarea>
+                    </div>
+
+                    <FormToggle 
+                        label="Comment Category" 
+                        name="category" 
+                        value={form.category} 
+                        options={['General', 'Breakdown']} 
+                        onChange={handleToggleChange}
+                        colors={{ 'Breakdown': 'bg-red-500 text-white' }}
+                    />
+                    
+                    <div className="flex justify-end items-center">
+                        <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Comment</button>
                     </div>
                 </form>
             </div>
@@ -437,7 +522,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporat
             case 'boilerShutdown':
                 return <PlaceholderForm title="Boiler Shutdown Log" onBack={() => setView('selection')} />;
             case 'addComment':
-                return <PlaceholderForm title="Add a Comment" onBack={() => setView('selection')} />;
+                return <AddCommentForm onAddCommentLog={onAddCommentLog} settings={settings} onBack={() => setView('selection')} onSaveSuccess={onSaveSuccess} />;
             default:
                 return <NewEntrySelection setView={setView} />;
         }

@@ -55,6 +55,17 @@ const App: React.FC = () => {
     const handleAddWaterTest = (entry: Omit<WaterTestEntry, 'id'>) => {
         const newEntry = { ...entry, id: new Date().toISOString() };
         setWaterTestEntries(prev => [...prev, newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.time.localeCompare(b.time)));
+
+        // Also log the comment if it exists
+        if (entry.commentText && entry.commentText.trim()) {
+            handleAddCommentLog({
+                timestamp: new Date().toISOString(),
+                userId: entry.testedByUserId,
+                source: 'Water Test',
+                category: entry.commentCategory || 'General',
+                text: entry.commentText.trim(),
+            });
+        }
     };
 
     const handleAddWeeklyEvaporationLog = (entry: Omit<WeeklyEvaporationLog, 'id'>) => {

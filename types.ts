@@ -62,6 +62,7 @@ export interface WaterTestEntry {
   
   // Comment
   commentText?: string;
+  commentCategory?: 'General' | 'Breakdown';
 
   // Legacy field for compatibility, can be phased out.
   hardness?: number; 
@@ -72,6 +73,7 @@ export interface CommentLog {
   timestamp: string; // ISO string
   userId?: string;
   source: 'Water Test' | 'Manual';
+  category: 'General' | 'Breakdown';
   text: string;
 }
 
