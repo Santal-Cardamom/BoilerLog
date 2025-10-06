@@ -24,7 +24,7 @@ export interface WaterTestEntry {
   };
 }
 
-export interface DailyBlowdownLog {
+export interface WeeklyEvaporationLog {
   id: string;
   formStartedAt: string; // ISO string
   formFinishedAt: string; // ISO string

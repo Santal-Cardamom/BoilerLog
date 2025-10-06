@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { WaterTestEntry, DailyBlowdownLog, TestParameters } from '../types';
+import { WaterTestEntry, WeeklyEvaporationLog, TestParameters } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { DropletIcon } from '../components/icons/DropletIcon';
 import { FireIcon } from '../components/icons/FireIcon';
@@ -9,8 +9,9 @@ import { CommentIcon } from '../components/icons/CommentIcon';
 
 interface NewEntryProps {
     onAddWaterTest: (entry: Omit<WaterTestEntry, 'id'>) => void;
-    onAddDailyBlowdownLog: (entry: Omit<DailyBlowdownLog, 'id'>) => void;
+    onAddWeeklyEvaporationLog: (entry: Omit<WeeklyEvaporationLog, 'id'>) => void;
     settings: TestParameters;
+    onSaveSuccess: () => void;
 }
 
 type EntryView = 'selection' | 'waterTest' | 'dailyBlowdown' | 'weeklyEvaporation' | 'boilerStartUp' | 'boilerShutdown' | 'addComment';
@@ -24,7 +25,6 @@ const BackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
         Back to Selection
     </button>
 );
-const SuccessMessage: React.FC = () => <span className="text-green-600 mr-4 transition-opacity duration-300">Entry saved successfully!</span>;
 const PageTitle: React.FC<{ title: string }> = ({ title }) => <h2 className="text-2xl font-bold text-slate-800 mb-6">{title}</h2>;
 
 // --- Water Test Form ---
@@ -42,10 +42,9 @@ const getInitialWaterTestState = (customParams: TestParameters['custom']) => {
     };
 };
 
-const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], settings: TestParameters, onBack: () => void }> = ({ onAddWaterTest, settings, onBack }) => {
+const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWaterTest, settings, onBack, onSaveSuccess }) => {
     const [form, setForm] = useState(getInitialWaterTestState(settings.custom));
     const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
-    const [showSuccess, setShowSuccess] = useState(false);
 
     useEffect(() => {
         const newErrors: { [key: string]: boolean } = {};
@@ -87,9 +86,7 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
             hardness: Number(form.hardness),
             customFields: customFieldsAsNumbers,
         });
-        setForm(getInitialWaterTestState(settings.custom));
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
+        onSaveSuccess();
     };
 
     return (
@@ -140,7 +137,6 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
                     ))}
                 </div>
                 <div className="flex justify-end items-center">
-                    {showSuccess && <SuccessMessage />}
                     <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Entry</button>
                 </div>
             </form>
@@ -148,7 +144,7 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
     );
 };
 
-// --- Daily Blowdown Form ---
+// --- Weekly Evaporation Form ---
 const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, name, value, onChange }) => (
     <div>
         <label className="block text-sm font-medium text-slate-600">{label}</label>
@@ -164,7 +160,7 @@ const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onCh
 );
 
 
-const DailyBlowdownForm: React.FC<{ onAddDailyBlowdownLog: NewEntryProps['onAddDailyBlowdownLog'], settings: TestParameters, onBack: () => void }> = ({ onAddDailyBlowdownLog, settings, onBack }) => {
+const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps['onAddWeeklyEvaporationLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWeeklyEvaporationLog, settings, onBack, onSaveSuccess }) => {
     const formStartedAt = useRef(new Date().toISOString());
     const [form, setForm] = useState({
         testDate: new Date().toISOString().split('T')[0],
@@ -174,7 +170,6 @@ const DailyBlowdownForm: React.FC<{ onAddDailyBlowdownLog: NewEntryProps['onAddD
         testCompleted: false,
         operatorUserId: '',
     });
-    const [showSuccess, setShowSuccess] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -191,29 +186,19 @@ const DailyBlowdownForm: React.FC<{ onAddDailyBlowdownLog: NewEntryProps['onAddD
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onAddDailyBlowdownLog({
+        onAddWeeklyEvaporationLog({
             ...form,
             formStartedAt: formStartedAt.current,
             formFinishedAt: new Date().toISOString(),
         });
-        setForm({
-            testDate: new Date().toISOString().split('T')[0],
-            testTime: new Date().toTimeString().split(' ')[0].substring(0, 5),
-            lowWaterAlarmWorked: false,
-            lowLowWaterAlarmWorked: false,
-            testCompleted: false,
-            operatorUserId: '',
-        });
-        formStartedAt.current = new Date().toISOString(); // Reset for next entry
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
+        onSaveSuccess();
     };
 
     return (
         <div>
             <BackButton onClick={onBack} />
             <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-lg shadow-md">
-                <PageTitle title="Daily Blowdown Log" />
+                <PageTitle title="Weekly Evaporation Log" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label htmlFor="testDate" className="block text-sm font-medium text-slate-600">Test Date</label>
@@ -239,7 +224,6 @@ const DailyBlowdownForm: React.FC<{ onAddDailyBlowdownLog: NewEntryProps['onAddD
                     </div>
                 </div>
                  <div className="flex justify-end items-center">
-                    {showSuccess && <SuccessMessage />}
                     <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Log</button>
                 </div>
             </form>
@@ -290,7 +274,7 @@ const NewEntrySelection: React.FC<{ setView: (view: EntryView) => void }> = ({ s
 };
 
 // --- Main Component ---
-const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddDailyBlowdownLog, settings }) => {
+const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, settings, onSaveSuccess }) => {
     const [view, setView] = useState<EntryView>('selection');
 
     const renderContent = () => {
@@ -298,11 +282,11 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddDailyBlowdownL
             case 'selection':
                 return <NewEntrySelection setView={setView} />;
             case 'waterTest':
-                return <WaterTestForm onAddWaterTest={onAddWaterTest} settings={settings} onBack={() => setView('selection')} />;
+                return <WaterTestForm onAddWaterTest={onAddWaterTest} settings={settings} onBack={() => setView('selection')} onSaveSuccess={onSaveSuccess} />;
             case 'dailyBlowdown':
-                return <DailyBlowdownForm onAddDailyBlowdownLog={onAddDailyBlowdownLog} settings={settings} onBack={() => setView('selection')} />;
+                return <PlaceholderForm title="Daily Blowdown Log" onBack={() => setView('selection')} />;
             case 'weeklyEvaporation':
-                return <PlaceholderForm title="Weekly Evaporation Log" onBack={() => setView('selection')} />;
+                return <WeeklyEvaporationForm onAddWeeklyEvaporationLog={onAddWeeklyEvaporationLog} settings={settings} onBack={() => setView('selection')} onSaveSuccess={onSaveSuccess} />;
             case 'boilerStartUp':
                 return <PlaceholderForm title="Boiler Start Up Log" onBack={() => setView('selection')} />;
             case 'boilerShutdown':

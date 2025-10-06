@@ -4,8 +4,9 @@ import Header from './components/Header';
 import Summary from './pages/Summary';
 import NewEntry from './pages/NewEntry';
 import Settings from './pages/Settings';
-import { Page, WaterTestEntry, DailyBlowdownLog, TestParameters } from './types';
+import { Page, WaterTestEntry, WeeklyEvaporationLog, TestParameters } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import SuccessOverlay from './components/SuccessOverlay';
 
 // Generate some initial mock data for demonstration, including out-of-spec values
 const generateInitialWaterData = (): WaterTestEntry[] => {
@@ -31,7 +32,7 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<Page>(Page.Summary);
     const [waterTests, setWaterTests] = useLocalStorage<WaterTestEntry[]>('waterTests', generateInitialWaterData());
-    const [dailyBlowdownLogs, setDailyBlowdownLogs] = useLocalStorage<DailyBlowdownLog[]>('dailyBlowdownLogs', []);
+    const [weeklyEvaporationLogs, setWeeklyEvaporationLogs] = useLocalStorage<WeeklyEvaporationLog[]>('weeklyEvaporationLogs', []);
     const [settings, setSettings] = useLocalStorage<TestParameters>('testParameters', {
         sulphite: { min: 30, max: 50 },
         alkalinity: { min: 350, max: 450 },
@@ -39,15 +40,24 @@ const App: React.FC = () => {
         custom: [],
         authorizedUsers: [],
     });
+    const [isSuccessOverlayVisible, setIsSuccessOverlayVisible] = useState(false);
+
+    const showSuccessAndRedirect = () => {
+        setIsSuccessOverlayVisible(true);
+        setTimeout(() => {
+            setIsSuccessOverlayVisible(false);
+            setCurrentPage(Page.Summary);
+        }, 2500); // Duration for animation + display
+    };
 
     const addWaterTest = (entry: Omit<WaterTestEntry, 'id'>) => {
         const newEntry: WaterTestEntry = { ...entry, id: new Date().getTime().toString() };
         setWaterTests(prev => [...prev, newEntry]);
     };
 
-    const addDailyBlowdownLog = (entry: Omit<DailyBlowdownLog, 'id'>) => {
-        const newEntry: DailyBlowdownLog = { ...entry, id: new Date().getTime().toString() };
-        setDailyBlowdownLogs(prev => [...prev, newEntry]);
+    const addWeeklyEvaporationLog = (entry: Omit<WeeklyEvaporationLog, 'id'>) => {
+        const newEntry: WeeklyEvaporationLog = { ...entry, id: new Date().getTime().toString() };
+        setWeeklyEvaporationLogs(prev => [...prev, newEntry]);
     };
 
     const renderPage = () => {
@@ -55,7 +65,7 @@ const App: React.FC = () => {
             case Page.Summary:
                 return <Summary waterTests={waterTests} settings={settings} />;
             case Page.NewEntry:
-                return <NewEntry onAddWaterTest={addWaterTest} onAddDailyBlowdownLog={addDailyBlowdownLog} settings={settings} />;
+                return <NewEntry onAddWaterTest={addWaterTest} onAddWeeklyEvaporationLog={addWeeklyEvaporationLog} settings={settings} onSaveSuccess={showSuccessAndRedirect} />;
             case Page.Settings:
                 return <Settings currentSettings={settings} onSettingsSave={setSettings} />;
             default:
@@ -65,6 +75,7 @@ const App: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans">
+            <SuccessOverlay isOpen={isSuccessOverlayVisible} message="Entry Saved" />
             <Sidebar 
                 isOpen={isSidebarOpen} 
                 currentPage={currentPage} 
