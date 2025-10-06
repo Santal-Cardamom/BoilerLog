@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+
+import * as React from 'react';
 import { WaterTestEntry, TestParameters, ParameterRange } from '../types';
 import { XIcon } from './icons/XIcon';
 
@@ -34,7 +35,7 @@ const getValidationClasses = (
 
 const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, settings }) => {
     // Note: Filters are not yet updated for all new fields. This can be a future enhancement.
-    const [filters, setFilters] = useState({
+    const [filters, setFilters] = React.useState({
         startDate: '',
         endDate: '',
         sulphiteMin: '',
@@ -42,10 +43,10 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
         alkalinityMin: '',
         alkalinityMax: '',
     });
-    const [filteredTests, setFilteredTests] = useState<WaterTestEntry[]>(allTests);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [filteredTests, setFilteredTests] = React.useState<WaterTestEntry[]>(allTests);
+    const [currentPage, setCurrentPage] = React.useState(1);
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (isOpen) {
             handleResetFilters();
         }
@@ -96,7 +97,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
         setCurrentPage(1);
     };
 
-    const paginatedTests = useMemo(() => {
+    const paginatedTests = React.useMemo(() => {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         return filteredTests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [currentPage, filteredTests]);

@@ -1,4 +1,5 @@
-import React from 'react';
+
+import * as React from 'react';
 import { MenuIcon } from './icons/MenuIcon';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 

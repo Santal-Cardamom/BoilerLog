@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import * as React from 'react';
 import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, ParameterRange, EntryView } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { DropletIcon } from '../components/icons/DropletIcon';
@@ -143,7 +144,7 @@ const getInitialWaterTestState = () => ({
 });
 
 const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], onAddCommentLog: NewEntryProps['onAddCommentLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWaterTest, onAddCommentLog, settings, onBack, onSaveSuccess }) => {
-    const [form, setForm] = useState(getInitialWaterTestState());
+    const [form, setForm] = React.useState(getInitialWaterTestState());
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -298,8 +299,8 @@ const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onCh
 
 
 const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps['onAddWeeklyEvaporationLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWeeklyEvaporationLog, settings, onBack, onSaveSuccess }) => {
-    const formStartedAt = useRef(new Date().toISOString());
-    const [form, setForm] = useState({
+    const formStartedAt = React.useRef(new Date().toISOString());
+    const [form, setForm] = React.useState({
         testDate: new Date().toISOString().split('T')[0],
         testTime: new Date().toTimeString().split(' ')[0].substring(0, 5),
         lowWaterAlarmWorked: false,
@@ -412,9 +413,9 @@ const NewEntrySelection: React.FC<{ setView: (view: EntryView) => void }> = ({ s
 
 // --- Main Component ---
 const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, onAddCommentLog, settings, onSaveSuccess, newEntryTarget, clearNewEntryTarget }) => {
-    const [view, setView] = useState<EntryView>('selection');
+    const [view, setView] = React.useState<EntryView>('selection');
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (newEntryTarget) {
             setView(newEntryTarget);
             clearNewEntryTarget();

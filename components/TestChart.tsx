@@ -1,5 +1,6 @@
 
-import React from 'react';
+
+import * as React from 'react';
 import { WaterTestEntry } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 

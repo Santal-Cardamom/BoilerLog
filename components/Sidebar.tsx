@@ -1,4 +1,5 @@
-import React from 'react';
+
+import * as React from 'react';
 import { Page } from '../types';
 import { ChartIcon } from './icons/ChartIcon';
 import { PlusIcon } from './icons/PlusIcon';

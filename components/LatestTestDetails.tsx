@@ -1,4 +1,5 @@
-import React from 'react';
+
+import * as React from 'react';
 import { WaterTestEntry, TestParameters, ParameterRange } from '../types';
 
 type ValidatedFields = keyof Omit<TestParameters, 'authorizedUsers' | 'hardness'>;

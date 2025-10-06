@@ -1,8 +1,9 @@
+
 // FIX: Import `React` to make the React namespace available for type annotations.
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 
 export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
+  const [storedValue, setStoredValue] = React.useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
@@ -12,7 +13,7 @@ export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dis
     }
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     try {
       const valueToStore = typeof storedValue === 'function' ? storedValue(storedValue) : storedValue;
       window.localStorage.setItem(key, JSON.stringify(valueToStore));
