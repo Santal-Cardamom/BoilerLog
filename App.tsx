@@ -4,7 +4,7 @@ import Header from './components/Header';
 import Summary from './pages/Summary';
 import NewEntry from './pages/NewEntry';
 import Settings from './pages/Settings';
-import { Page, WaterTestEntry, BlowdownEntry, TestParameters } from './types';
+import { Page, WaterTestEntry, DailyBlowdownLog, TestParameters } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
 // Generate some initial mock data for demonstration, including out-of-spec values
@@ -20,7 +20,8 @@ const generateInitialWaterData = (): WaterTestEntry[] => {
             // Widen the random range to generate some values outside the default spec
             sulphite: Math.floor(Math.random() * (60 - 20 + 1) + 20), // Default spec: 30-50
             alkalinity: Math.floor(Math.random() * (500 - 300 + 1) + 300), // Default spec: 350-450
-            hardness: Math.floor(Math.random() * 3), // Default spec: max 0
+            hardness: Math.floor(Math.random() * 3), // Default spec: max 0,
+            customFields: {}, // Initialize with empty custom fields
         });
     }
     return data;
@@ -30,11 +31,13 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<Page>(Page.Summary);
     const [waterTests, setWaterTests] = useLocalStorage<WaterTestEntry[]>('waterTests', generateInitialWaterData());
-    const [blowdownLogs, setBlowdownLogs] = useLocalStorage<BlowdownEntry[]>('blowdownLogs', []);
+    const [dailyBlowdownLogs, setDailyBlowdownLogs] = useLocalStorage<DailyBlowdownLog[]>('dailyBlowdownLogs', []);
     const [settings, setSettings] = useLocalStorage<TestParameters>('testParameters', {
         sulphite: { min: 30, max: 50 },
         alkalinity: { min: 350, max: 450 },
         hardness: { max: 0 },
+        custom: [],
+        authorizedUsers: [],
     });
 
     const addWaterTest = (entry: Omit<WaterTestEntry, 'id'>) => {
@@ -42,9 +45,9 @@ const App: React.FC = () => {
         setWaterTests(prev => [...prev, newEntry]);
     };
 
-    const addBlowdownLog = (entry: Omit<BlowdownEntry, 'id'>) => {
-        const newEntry: BlowdownEntry = { ...entry, id: new Date().getTime().toString() };
-        setBlowdownLogs(prev => [...prev, newEntry]);
+    const addDailyBlowdownLog = (entry: Omit<DailyBlowdownLog, 'id'>) => {
+        const newEntry: DailyBlowdownLog = { ...entry, id: new Date().getTime().toString() };
+        setDailyBlowdownLogs(prev => [...prev, newEntry]);
     };
 
     const renderPage = () => {
@@ -52,7 +55,7 @@ const App: React.FC = () => {
             case Page.Summary:
                 return <Summary waterTests={waterTests} settings={settings} />;
             case Page.NewEntry:
-                return <NewEntry onAddWaterTest={addWaterTest} onAddBlowdownLog={addBlowdownLog} settings={settings} />;
+                return <NewEntry onAddWaterTest={addWaterTest} onAddDailyBlowdownLog={addDailyBlowdownLog} settings={settings} />;
             case Page.Settings:
                 return <Settings currentSettings={settings} onSettingsSave={setSettings} />;
             default:
@@ -65,8 +68,8 @@ const App: React.FC = () => {
             <Sidebar 
                 isOpen={isSidebarOpen} 
                 currentPage={currentPage} 
-                setCurrentPage={setCurrentPage} 
-                toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                setCurrentPage={setCurrentPage}
+                closeSidebar={() => setIsSidebarOpen(false)}
             />
             <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: isSidebarOpen ? '256px' : '80px' }}>
                 <Header 

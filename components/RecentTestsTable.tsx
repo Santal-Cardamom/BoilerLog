@@ -8,11 +8,10 @@ interface RecentTestsTableProps {
 
 const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) => {
 
-    const isOutOfSpec = (key: 'sulphite' | 'alkalinity' | 'hardness', value: number): boolean => {
-        if (!settings) return false;
-        
-        // Ensure all values are treated as numbers for comparison to avoid type issues.
+    const isOutOfSpec = (key: string, value: number): boolean => {
+        if (value === null || value === undefined) return false;
         const numValue = Number(value);
+        if (isNaN(numValue)) return false;
 
         switch(key) {
             case 'sulphite': 
@@ -21,11 +20,16 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
                 return numValue < Number(settings.alkalinity.min) || numValue > Number(settings.alkalinity.max);
             case 'hardness': 
                 return numValue > Number(settings.hardness.max);
-            default: return false;
+            default:
+                const customParam = settings.custom.find(p => p.id === key);
+                if (customParam) {
+                    return numValue < Number(customParam.min) || numValue > Number(customParam.max);
+                }
+                return false;
         }
     };
 
-    const valueCellClasses = (key: 'sulphite' | 'alkalinity', value: number) => {
+    const valueCellClasses = (key: string, value: number) => {
         let base = "px-6 py-4 whitespace-nowrap text-sm ";
         if (isOutOfSpec(key, value)) {
             return base + "text-red-600 font-bold";
@@ -62,17 +66,31 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
         const date = new Date(dateString + 'T00:00:00');
         return date.toLocaleDateString();
     };
+    
+    const getUserNameById = (userId?: string) => {
+        if (!userId) return 'N/A';
+        const user = settings.authorizedUsers.find(u => u.id === userId);
+        return user ? user.name : 'Unknown User';
+    };
+
+    const headerClasses = "px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider";
 
     return (
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                     <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Sulphite (ppm)</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Alkalinity (ppm)</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hardness</th>
+                        <th scope="col" className={headerClasses}>Date</th>
+                        <th scope="col" className={headerClasses}>Time</th>
+                        <th scope="col" className={headerClasses}>Sulphite (ppm)</th>
+                        <th scope="col" className={headerClasses}>Alkalinity (ppm)</th>
+                        <th scope="col" className={headerClasses}>Hardness</th>
+                        <th scope="col" className={headerClasses}>Tested By</th>
+                        {settings.custom.map(param => (
+                            <th key={param.id} scope="col" className={headerClasses}>
+                                {param.name} ({param.unit})
+                            </th>
+                        ))}
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -83,6 +101,12 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
                             <td className={valueCellClasses('sulphite', test.sulphite)}>{test.sulphite}</td>
                             <td className={valueCellClasses('alkalinity', test.alkalinity)}>{test.alkalinity}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getHardnessBadge(test.hardness)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getUserNameById(test.testedByUserId)}</td>
+                            {settings.custom.map(param => (
+                                <td key={param.id} className={valueCellClasses(param.id, test.customFields?.[param.id])}>
+                                    {test.customFields?.[param.id] ?? 'N/A'}
+                                </td>
+                            ))}
                         </tr>
                     ))}
                 </tbody>

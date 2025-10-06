@@ -87,17 +87,25 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
 
     const totalPages = Math.ceil(filteredTests.length / ITEMS_PER_PAGE);
 
-    const isOutOfSpec = (key: 'sulphite' | 'alkalinity' | 'hardness', value: number): boolean => {
+    const isOutOfSpec = (key: string, value: number): boolean => {
+         if (value === null || value === undefined) return false;
          const numValue = Number(value);
+         if (isNaN(numValue)) return false;
+
          switch(key) {
             case 'sulphite': return numValue < Number(settings.sulphite.min) || numValue > Number(settings.sulphite.max);
             case 'alkalinity': return numValue < Number(settings.alkalinity.min) || numValue > Number(settings.alkalinity.max);
             case 'hardness': return numValue > Number(settings.hardness.max);
-            default: return false;
+            default:
+                const customParam = settings.custom.find(p => p.id === key);
+                if (customParam) {
+                    return numValue < Number(customParam.min) || numValue > Number(customParam.max);
+                }
+                return false;
         }
     };
 
-    const valueCellClasses = (key: 'sulphite' | 'alkalinity', value: number) => {
+    const valueCellClasses = (key: string, value: number) => {
         return isOutOfSpec(key, value) ? "text-red-600 font-bold" : "text-slate-500";
     };
 
@@ -113,6 +121,14 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
     };
     
     const formatDate = (dateString: string) => new Date(dateString + 'T00:00:00').toLocaleDateString();
+    
+    const getUserNameById = (userId?: string) => {
+        if (!userId) return 'N/A';
+        const user = settings.authorizedUsers.find(u => u.id === userId);
+        return user ? user.name : 'Unknown User';
+    };
+
+    const headerClasses = "px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider";
 
     if (!isOpen) return null;
 
@@ -181,11 +197,17 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
                      <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-200 sticky top-0">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Sulphite (ppm)</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Alkalinity (ppm)</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hardness</th>
+                                <th className={headerClasses}>Date</th>
+                                <th className={headerClasses}>Time</th>
+                                <th className={headerClasses}>Sulphite (ppm)</th>
+                                <th className={headerClasses}>Alkalinity (ppm)</th>
+                                <th className={headerClasses}>Hardness</th>
+                                <th className={headerClasses}>Tested By</th>
+                                {settings.custom.map(param => (
+                                    <th key={param.id} className={headerClasses}>
+                                        {param.name} ({param.unit})
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-200">
@@ -196,10 +218,16 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses('sulphite', test.sulphite)}`}>{test.sulphite}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses('alkalinity', test.alkalinity)}`}>{test.alkalinity}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getHardnessBadge(test.hardness)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getUserNameById(test.testedByUserId)}</td>
+                                    {settings.custom.map(param => (
+                                        <td key={param.id} className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses(param.id, test.customFields?.[param.id])}`}>
+                                            {test.customFields?.[param.id] ?? 'N/A'}
+                                        </td>
+                                    ))}
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-10 text-slate-500">No records match the current filters.</td>
+                                    <td colSpan={6 + settings.custom.length} className="text-center py-10 text-slate-500">No records match the current filters.</td>
                                 </tr>
                             )}
                         </tbody>
