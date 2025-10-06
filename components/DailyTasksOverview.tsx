@@ -21,13 +21,13 @@ const TaskBox: React.FC<TaskBoxProps> = ({ title, status, completedAt, onClick }
     const statusConfig = {
         pending: {
             className: 'animate-pulse-amber',
-            icon: <ClockIcon className="h-8 w-8 text-amber-500" />,
+            icon: <ClockIcon className="h-6 w-6 text-amber-500" />,
             text: 'Pending',
             textColor: 'text-amber-700'
         },
         completed: {
             className: 'bg-green-50 border-green-300',
-            icon: <CheckCircleIcon className="h-8 w-8 text-green-500" />,
+            icon: <CheckCircleIcon className="h-6 w-6 text-green-500" />,
             text: 'Completed',
             textColor: 'text-green-700'
         }
@@ -38,12 +38,12 @@ const TaskBox: React.FC<TaskBoxProps> = ({ title, status, completedAt, onClick }
     return (
         <button
             onClick={onClick}
-            className={`p-4 rounded-lg shadow-md border w-full h-full flex flex-col items-center justify-center text-center transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${config.className}`}
+            className={`p-3 rounded-lg shadow-md border w-full h-full flex flex-col items-center justify-center text-center transition-all duration-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${config.className}`}
         >
-            <h4 className="font-bold text-slate-800 text-lg">{title}</h4>
-            <div className="mt-3 flex flex-col items-center">
+            <h4 className="font-bold text-slate-800 text-base">{title}</h4>
+            <div className="mt-2 flex flex-col items-center">
                 {config.icon}
-                <span className={`mt-2 font-semibold ${config.textColor}`}>{config.text}</span>
+                <span className={`mt-1 font-semibold text-sm ${config.textColor}`}>{config.text}</span>
                 {completedAt && (
                     <p className="text-xs text-slate-500 mt-1">
                         {completedAt.toLocaleDateString()} @ {completedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -120,8 +120,8 @@ const DailyTasksOverview: React.FC<DailyTasksOverviewProps> = ({ waterTestEntrie
                     animation: pulse-amber 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                 }
             `}</style>
-            <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">Tasks Overview</h3>
+            <div className="bg-white p-4 rounded-lg shadow-md border border-slate-200">
+                <h3 className="text-base font-semibold text-slate-800 mb-3">Tasks Overview</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <TaskBox 
                         title="Daily Boiler Water Test" 

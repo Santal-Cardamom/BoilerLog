@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -88,6 +87,7 @@ const App: React.FC = () => {
                 return <Summary 
                     waterTestEntries={waterTestEntries} 
                     weeklyEvaporationLogs={weeklyEvaporationLogs}
+                    commentLogs={commentLogs}
                     settings={settings} 
                     setNewEntryTarget={handleSetNewEntryTarget} 
                 />;
@@ -107,6 +107,7 @@ const App: React.FC = () => {
                 return <Summary 
                     waterTestEntries={waterTestEntries} 
                     weeklyEvaporationLogs={weeklyEvaporationLogs}
+                    commentLogs={commentLogs}
                     settings={settings} 
                     setNewEntryTarget={handleSetNewEntryTarget} 
                 />;

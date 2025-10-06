@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, EntryView } from '../types';
+import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, EntryView, CommentLog } from '../types';
 import StatusOverview from '../components/StatusOverview';
 import RecentTestsTable from '../components/RecentTestsTable';
 import TestChart from '../components/TestChart';
@@ -10,11 +10,12 @@ import DailyTasksOverview from '../components/DailyTasksOverview';
 interface SummaryProps {
     waterTestEntries: WaterTestEntry[];
     weeklyEvaporationLogs: WeeklyEvaporationLog[];
+    commentLogs: CommentLog[];
     settings: TestParameters;
     setNewEntryTarget: (target: EntryView) => void;
 }
 
-const Summary: React.FC<SummaryProps> = ({ waterTestEntries, weeklyEvaporationLogs, settings, setNewEntryTarget }) => {
+const Summary: React.FC<SummaryProps> = ({ waterTestEntries, weeklyEvaporationLogs, commentLogs, settings, setNewEntryTarget }) => {
     const [isHistoryModalOpen, setHistoryModalOpen] = React.useState(false);
 
     if (waterTestEntries.length === 0) {
@@ -38,17 +39,21 @@ const Summary: React.FC<SummaryProps> = ({ waterTestEntries, weeklyEvaporationLo
     
     return (
         <div className="space-y-6">
-            <DailyTasksOverview 
-                waterTestEntries={waterTestEntries} 
-                weeklyEvaporationLogs={weeklyEvaporationLogs} 
-                setNewEntryTarget={setNewEntryTarget} 
-            />
-            <StatusOverview latestTest={latestTest} settings={settings} setNewEntryTarget={setNewEntryTarget} />
-            
-            <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">Latest Test Details</h3>
-                <LatestTestDetails test={latestTest} settings={settings} />
+            <div className="space-y-4">
+                <DailyTasksOverview 
+                    waterTestEntries={waterTestEntries} 
+                    weeklyEvaporationLogs={weeklyEvaporationLogs} 
+                    setNewEntryTarget={setNewEntryTarget} 
+                />
+                <StatusOverview 
+                    latestTest={latestTest} 
+                    settings={settings} 
+                    setNewEntryTarget={setNewEntryTarget} 
+                    commentLogs={commentLogs}
+                />
             </div>
+            
+            <LatestTestDetails test={latestTest} settings={settings} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
