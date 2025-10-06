@@ -3,6 +3,7 @@ import { WaterTestEntry, TestParameters } from '../types';
 import TestChart from '../components/TestChart';
 import RecentTestsTable from '../components/RecentTestsTable';
 import HistoryModal from '../components/HistoryModal';
+import LatestTestDetails from '../components/LatestTestDetails';
 
 interface SummaryProps {
     waterTests: WaterTestEntry[];
@@ -12,6 +13,7 @@ interface SummaryProps {
 const Summary: React.FC<SummaryProps> = ({ waterTests, settings }) => {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const last10Tests = waterTests.slice(-10);
+    const latestTest = waterTests.length > 0 ? waterTests[waterTests.length - 1] : null;
 
     return (
         <div className="space-y-6">
@@ -25,6 +27,14 @@ const Summary: React.FC<SummaryProps> = ({ waterTests, settings }) => {
                     <TestChart data={waterTests} dataKey="alkalinity" color="#fb923c" />
                 </div>
             </div>
+
+            {latestTest && (
+                 <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-4">Latest Water Test Details</h3>
+                    <LatestTestDetails test={latestTest} settings={settings} />
+                 </div>
+            )}
+
              <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-slate-700">Last 10 Water Tests</h3>

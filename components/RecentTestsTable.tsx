@@ -1,5 +1,27 @@
 import React from 'react';
-import { WaterTestEntry, TestParameters } from '../types';
+import { WaterTestEntry, TestParameters, ParameterRange } from '../types';
+
+type ValidatedFields = keyof Omit<TestParameters, 'authorizedUsers' | 'hardness'>;
+
+const getValidationClasses = (
+    key: ValidatedFields,
+    value: number | undefined | null,
+    settings: TestParameters
+): string => {
+    // FIX: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+    if (value === null || value === undefined) return "text-slate-500";
+    
+    const numValue = Number(value);
+    if (isNaN(numValue)) return "text-slate-500";
+
+    const spec = settings[key] as ParameterRange | undefined;
+    if (!spec) return "text-slate-500";
+
+    if (numValue >= spec.min && numValue <= spec.max) {
+        return "text-green-600 font-bold";
+    }
+    return "text-red-600 font-bold";
+};
 
 interface RecentTestsTableProps {
     tests: WaterTestEntry[];
@@ -7,62 +29,8 @@ interface RecentTestsTableProps {
 }
 
 const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) => {
-
-    const isOutOfSpec = (key: string, value: number): boolean => {
-        if (value === null || value === undefined) return false;
-        const numValue = Number(value);
-        if (isNaN(numValue)) return false;
-
-        switch(key) {
-            case 'sulphite': 
-                return numValue < Number(settings.sulphite.min) || numValue > Number(settings.sulphite.max);
-            case 'alkalinity': 
-                return numValue < Number(settings.alkalinity.min) || numValue > Number(settings.alkalinity.max);
-            case 'hardness': 
-                return numValue > Number(settings.hardness.max);
-            default:
-                const customParam = settings.custom.find(p => p.id === key);
-                if (customParam) {
-                    return numValue < Number(customParam.min) || numValue > Number(customParam.max);
-                }
-                return false;
-        }
-    };
-
-    const valueCellClasses = (key: string, value: number) => {
-        let base = "px-6 py-4 whitespace-nowrap text-sm ";
-        if (isOutOfSpec(key, value)) {
-            return base + "text-red-600 font-bold";
-        }
-        return base + "text-slate-500";
-    };
-
-    const getHardnessBadge = (hardness: number) => {
-        const isHardnessOutOfSpec = isOutOfSpec('hardness', hardness);
-        let badgeClasses = "px-2 inline-flex text-xs leading-5 font-semibold rounded-full ";
-        let text = "Hard";
-
-        if (hardness === 0) {
-            badgeClasses += "bg-green-100 text-green-800";
-            text = "Soft";
-        } else if (hardness === 1) {
-            badgeClasses += "bg-yellow-100 text-yellow-800";
-            text = "Medium";
-        } else {
-            badgeClasses += "bg-red-100 text-red-800";
-        }
-
-        if (isHardnessOutOfSpec) {
-            badgeClasses += " ring-2 ring-red-500 ring-offset-1";
-        }
-        
-        return <span className={badgeClasses}>{text}</span>;
-    };
-    
     // Correct date parsing to avoid timezone issues
     const formatDate = (dateString: string) => {
-        // Appending 'T00:00:00' ensures the date is parsed in the local timezone, not UTC,
-        // preventing the date from being off by one day in some timezones.
         const date = new Date(dateString + 'T00:00:00');
         return date.toLocaleDateString();
     };
@@ -74,6 +42,7 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
     };
 
     const headerClasses = "px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider";
+    const NA = <span className="text-slate-400">N/A</span>;
 
     return (
         <div className="overflow-x-auto">
@@ -82,15 +51,12 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
                     <tr>
                         <th scope="col" className={headerClasses}>Date</th>
                         <th scope="col" className={headerClasses}>Time</th>
+                        <th scope="col" className={headerClasses}>Boiler</th>
+                        <th scope="col" className={headerClasses}>Tested By</th>
                         <th scope="col" className={headerClasses}>Sulphite (ppm)</th>
                         <th scope="col" className={headerClasses}>Alkalinity (ppm)</th>
-                        <th scope="col" className={headerClasses}>Hardness</th>
-                        <th scope="col" className={headerClasses}>Tested By</th>
-                        {settings.custom.map(param => (
-                            <th key={param.id} scope="col" className={headerClasses}>
-                                {param.name} ({param.unit})
-                            </th>
-                        ))}
+                        <th scope="col" className={headerClasses}>Boiler pH</th>
+                        <th scope="col" className={headerClasses}>Feed Water Hardness (ppm)</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
@@ -98,15 +64,12 @@ const RecentTestsTable: React.FC<RecentTestsTableProps> = ({ tests, settings }) 
                         <tr key={test.id} className="hover:bg-slate-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{formatDate(test.date)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{test.time}</td>
-                            <td className={valueCellClasses('sulphite', test.sulphite)}>{test.sulphite}</td>
-                            <td className={valueCellClasses('alkalinity', test.alkalinity)}>{test.alkalinity}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getHardnessBadge(test.hardness)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{test.boilerName}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getUserNameById(test.testedByUserId)}</td>
-                            {settings.custom.map(param => (
-                                <td key={param.id} className={valueCellClasses(param.id, test.customFields?.[param.id])}>
-                                    {test.customFields?.[param.id] ?? 'N/A'}
-                                </td>
-                            ))}
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${getValidationClasses('sulphite', test.sulphite, settings)}`}>{test.sulphite ?? NA}</td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${getValidationClasses('alkalinity', test.alkalinity, settings)}`}>{test.alkalinity ?? NA}</td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${getValidationClasses('boilerPh', test.boilerPh, settings)}`}>{test.boilerPh ?? NA}</td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${getValidationClasses('feedWaterHardness', test.feedWaterHardness, settings)}`}>{test.feedWaterHardness ?? NA}</td>
                         </tr>
                     ))}
                 </tbody>

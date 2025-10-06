@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { WaterTestEntry, WeeklyEvaporationLog, TestParameters } from '../types';
+import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, ParameterRange } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { DropletIcon } from '../components/icons/DropletIcon';
 import { FireIcon } from '../components/icons/FireIcon';
@@ -10,15 +10,16 @@ import { CommentIcon } from '../components/icons/CommentIcon';
 interface NewEntryProps {
     onAddWaterTest: (entry: Omit<WaterTestEntry, 'id'>) => void;
     onAddWeeklyEvaporationLog: (entry: Omit<WeeklyEvaporationLog, 'id'>) => void;
+    onAddCommentLog: (entry: Omit<CommentLog, 'id'>) => void;
     settings: TestParameters;
     onSaveSuccess: () => void;
 }
 
 type EntryView = 'selection' | 'waterTest' | 'dailyBlowdown' | 'weeklyEvaporation' | 'boilerStartUp' | 'boilerShutdown' | 'addComment';
+type ValidationState = 'default' | 'in-spec' | 'out-of-spec';
 
 // --- Reusable Components ---
-const baseInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-slate-900";
-const errorInputClasses = "border-red-500 ring-1 ring-red-500 focus:border-red-500 focus:ring-red-500";
+const baseInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none text-slate-900 transition-colors duration-200";
 const BackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     <button onClick={onClick} className="flex items-center text-sm font-semibold text-sky-600 hover:text-sky-800 mb-6">
         <ArrowLeftIcon className="mr-2" />
@@ -26,118 +27,253 @@ const BackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     </button>
 );
 const PageTitle: React.FC<{ title: string }> = ({ title }) => <h2 className="text-2xl font-bold text-slate-800 mb-6">{title}</h2>;
+const Fieldset: React.FC<{ legend: string, children: React.ReactNode }> = ({ legend, children }) => (
+     <div className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-200">
+        <div className="bg-slate-700 px-6 py-3">
+            <h3 className="text-lg font-semibold text-white">{legend}</h3>
+        </div>
+        <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {children}
+            </div>
+        </div>
+    </div>
+);
+const FormInput: React.FC<{ label: string, name: string, type?: string, value: any, onChange: (e: any) => void, required?: boolean, children?: React.ReactNode, validationState?: ValidationState }> = 
+    ({ label, name, type = "text", value, onChange, required = false, children, validationState = 'default' }) => {
 
-// --- Water Test Form ---
-const getInitialWaterTestState = (customParams: TestParameters['custom']) => {
-    const customFields: { [key: string]: string } = {};
-    customParams.forEach(p => { customFields[p.id] = ''; });
-    return {
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-        sulphite: '',
-        alkalinity: '',
-        hardness: '',
-        testedByUserId: '',
-        customFields: customFields,
+    const validationClasses = {
+        'default': 'focus:ring-sky-500 focus:border-sky-500',
+        'in-spec': 'border-green-500 ring-2 ring-green-200 focus:border-green-600 focus:ring-green-500',
+        'out-of-spec': 'border-red-500 ring-2 ring-red-200 focus:border-red-600 focus:ring-red-500'
     };
+    
+    const combinedClasses = `${baseInputClasses} ${validationClasses[validationState]}`;
+
+    return (
+        <div>
+            <label htmlFor={name} className="block text-sm font-medium text-slate-600">{label}</label>
+            {children ? (
+                <select name={name} id={name} value={value} onChange={onChange} required={required} className={combinedClasses}>
+                    {children}
+                </select>
+            ) : (
+                <input type={type} name={name} id={name} value={value} onChange={onChange} required={required} className={combinedClasses} />
+            )}
+        </div>
+    );
+};
+const FormToggle: React.FC<{ label: string, name: string, value: string, options: string[], onChange: (name: string, value: string) => void }> = 
+    ({ label, name, value, options, onChange }) => (
+    <div>
+        <label className="block text-sm font-medium text-slate-600 mb-2">{label}</label>
+        <div className="flex items-center space-x-2">
+            {options.map(option => (
+                <button
+                    key={option}
+                    type="button"
+                    onClick={() => onChange(name, option)}
+                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${value === option ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                >
+                    {option}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
+// --- Validation Helper ---
+const getValidationState = (
+    value: string | number,
+    spec?: ParameterRange
+): ValidationState => {
+    if (value === '' || value === null || value === undefined || !spec) {
+        return 'default';
+    }
+    const numValue = Number(value);
+    if (isNaN(numValue)) {
+        return 'default';
+    }
+    if (numValue >= spec.min && numValue <= spec.max) {
+        return 'in-spec';
+    }
+    return 'out-of-spec';
 };
 
-const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWaterTest, settings, onBack, onSaveSuccess }) => {
-    const [form, setForm] = useState(getInitialWaterTestState(settings.custom));
-    const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
 
-    useEffect(() => {
-        const newErrors: { [key: string]: boolean } = {};
-        const validate = (val: string, min?: number, max?: number) => {
-            if (val === '') return false;
-            const numVal = Number(val);
-            if (isNaN(numVal)) return false;
-            if (min !== undefined && numVal < min) return true;
-            if (max !== undefined && numVal > max) return true;
-            return false;
-        };
-        newErrors['sulphite'] = validate(form.sulphite, settings.sulphite.min, settings.sulphite.max);
-        newErrors['alkalinity'] = validate(form.alkalinity, settings.alkalinity.min, settings.alkalinity.max);
-        newErrors['hardness'] = validate(form.hardness, undefined, settings.hardness.max);
-        settings.custom.forEach(param => {
-            newErrors[param.id] = validate(form.customFields[param.id], param.min, param.max);
-        });
-        setErrors(newErrors);
-    }, [form, settings]);
+// --- Water Test Form ---
+const getInitialWaterTestState = () => ({
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+    boilerName: 'Beel' as 'Beel' | 'Cradley',
+    testedByUserId: '',
+    boilerStartTime: '24',
+    mainGasReading: '',
+    sulphite: '',
+    alkalinity: '',
+    boilerPh: '',
+    tdsProbeReadout: '',
+    tdsLevelCheck: '',
+    feedWaterHardness: '',
+    feedWaterPh: '',
+    boilerSoftenerHardness: '',
+    boilerSoftenerUnitInService: 1 as 1 | 2,
+    boilerSoftenerLitresUntilRegen: '',
+    boilerSoftenerSaltBagsAdded: '',
+    condensateHardness: '',
+    condensateTds: '',
+    condensatePh: '',
+    brewerySoftenerHardness: 'Soft' as 'Soft' | 'Hard',
+    brewerySoftenerUnitInService: 1 as 1 | 2,
+    nalco77211: '',
+    nexGuard22310: '',
+    waterAdded: '',
+    waterFeedPump: 'Working' as 'Working' | 'Not Working',
+    chemicalDosingPump: 'Working' as 'Working' | 'Not Working',
+    flameDetector: 'Working' as 'Working' | 'Not Working',
+    tdsProbeCheck: 'Checked' as 'Checked' | 'Not Checked',
+    leftSightGlass: 'Completed' as 'Completed' | 'Not Completed',
+    rightSightGlass: 'Completed' as 'Completed' | 'Not Completed',
+    bottomBlowdown: 'Completed' as 'Completed' | 'Not Completed',
+    tocMonitorChecked: false,
+    spotSampleTaken: false,
+    compositeSampleTaken: false,
+    commentText: '',
+});
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [e.target.name]: e.target.value });
-    const handleCustomFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setForm(prev => ({ ...prev, customFields: { ...prev.customFields, [name]: value } }));
+const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'], onAddCommentLog: NewEntryProps['onAddCommentLog'], settings: TestParameters, onBack: () => void, onSaveSuccess: () => void }> = ({ onAddWaterTest, onAddCommentLog, settings, onBack, onSaveSuccess }) => {
+    const [form, setForm] = useState(getInitialWaterTestState());
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        const isCheckbox = type === 'checkbox';
+        setForm(prev => ({ ...prev, [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value }));
+    };
+    
+    const handleToggleChange = (name: string, value: any) => {
+        setForm(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const customFieldsAsNumbers: { [key: string]: number } = {};
-        for (const paramId in form.customFields) {
-            if (form.customFields[paramId] !== '') {
-                customFieldsAsNumbers[paramId] = Number(form.customFields[paramId]);
+        
+        // Convert string number fields to actual numbers
+        const numericFields = ['mainGasReading', 'sulphite', 'alkalinity', 'boilerPh', 'tdsProbeReadout', 'tdsLevelCheck', 'feedWaterHardness', 'feedWaterPh', 'boilerSoftenerHardness', 'boilerSoftenerLitresUntilRegen', 'boilerSoftenerSaltBagsAdded', 'condensateHardness', 'condensateTds', 'condensatePh', 'nalco77211', 'nexGuard22310', 'waterAdded'];
+        const processedForm: any = { ...form };
+        numericFields.forEach(field => {
+            if (processedForm[field] !== '' && processedForm[field] !== undefined && processedForm[field] !== null) {
+                processedForm[field] = Number(processedForm[field]);
+            } else {
+                 delete processedForm[field]; // Remove empty optional fields
             }
-        }
-        onAddWaterTest({
-            ...form,
-            sulphite: Number(form.sulphite),
-            alkalinity: Number(form.alkalinity),
-            hardness: Number(form.hardness),
-            customFields: customFieldsAsNumbers,
         });
+
+        onAddWaterTest(processedForm);
+
+        if (form.commentText.trim()) {
+            onAddCommentLog({
+                timestamp: new Date().toISOString(),
+                userId: form.testedByUserId,
+                source: 'Water Test',
+                text: form.commentText.trim(),
+            });
+        }
+        
         onSaveSuccess();
     };
 
     return (
         <div>
             <BackButton onClick={onBack} />
-            <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-lg shadow-md">
-                <PageTitle title="Daily Water Test Log" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="date" className="block text-sm font-medium text-slate-600">Date</label>
-                        <input type="date" name="date" id="date" value={form.date} onChange={handleChange} required className={baseInputClasses} />
+            <PageTitle title="Daily Water Test Log" />
+            <form onSubmit={handleSubmit} className="space-y-8">
+                
+                <Fieldset legend="General Information">
+                    <FormInput label="Which Boiler is Being Tested" name="boilerName" value={form.boilerName} onChange={handleChange} required>
+                        <option value="Beel">Beel</option>
+                        <option value="Cradley">Cradley</option>
+                    </FormInput>
+                    <FormInput label="Authorized User Name" name="testedByUserId" value={form.testedByUserId} onChange={handleChange} required>
+                        <option value="" disabled>Select User...</option>
+                        {settings.authorizedUsers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                    </FormInput>
+                    <FormInput label="Boiler Start Time (24 for 24 hours)" name="boilerStartTime" value={form.boilerStartTime} onChange={handleChange} required />
+                    <FormInput label="Main Gas Reading (m3)" name="mainGasReading" type="number" value={form.mainGasReading} onChange={handleChange} />
+                </Fieldset>
+
+                <Fieldset legend="Water Tests">
+                    <FormInput label="Sulphite Level (PPM)" name="sulphite" type="number" value={form.sulphite} onChange={handleChange} validationState={getValidationState(form.sulphite, settings.sulphite)} />
+                    <FormInput label="Alkalinity Level (PPM)" name="alkalinity" type="number" value={form.alkalinity} onChange={handleChange} validationState={getValidationState(form.alkalinity, settings.alkalinity)} />
+                    <FormInput label="Boiler Ph (Ph)" name="boilerPh" type="number" value={form.boilerPh} onChange={handleChange} validationState={getValidationState(form.boilerPh, settings.boilerPh)} />
+                    <FormInput label="TDS Probe Readout (PPM)" name="tdsProbeReadout" type="number" value={form.tdsProbeReadout} onChange={handleChange} validationState={getValidationState(form.tdsProbeReadout, settings.tdsProbeReadout)} />
+                    <FormInput label="TDS Level Check (PPM)" name="tdsLevelCheck" type="number" value={form.tdsLevelCheck} onChange={handleChange} validationState={getValidationState(form.tdsLevelCheck, settings.tdsLevelCheck)} />
+                </Fieldset>
+                
+                <Fieldset legend="Feed Water">
+                    <FormInput label="Hardness (PPM)" name="feedWaterHardness" type="number" value={form.feedWaterHardness} onChange={handleChange} validationState={getValidationState(form.feedWaterHardness, settings.feedWaterHardness)} />
+                    <FormInput label="Feed Water Ph (Ph)" name="feedWaterPh" type="number" value={form.feedWaterPh} onChange={handleChange} validationState={getValidationState(form.feedWaterPh, settings.feedWaterPh)} />
+                </Fieldset>
+
+                <Fieldset legend="Boiler Softeners">
+                    <FormInput label="Hardness (PPM)" name="boilerSoftenerHardness" type="number" value={form.boilerSoftenerHardness} onChange={handleChange} validationState={getValidationState(form.boilerSoftenerHardness, settings.boilerSoftenerHardness)} />
+                    <FormInput label="Unit in Service" name="boilerSoftenerUnitInService" value={form.boilerSoftenerUnitInService} onChange={handleChange} >
+                        <option value={1}>1</option>
+                        <option value={2}>2</option>
+                    </FormInput>
+                    <FormInput label="Litres Until Regeneration (Lts)" name="boilerSoftenerLitresUntilRegen" type="number" value={form.boilerSoftenerLitresUntilRegen} onChange={handleChange} />
+                    <FormInput label="Bags of Salt Added (25Kg)" name="boilerSoftenerSaltBagsAdded" type="number" value={form.boilerSoftenerSaltBagsAdded} onChange={handleChange} />
+                </Fieldset>
+
+                <Fieldset legend="Brewhouse Condensate">
+                    <FormInput label="Condensate Hardness Check (PPM)" name="condensateHardness" type="number" value={form.condensateHardness} onChange={handleChange} validationState={getValidationState(form.condensateHardness, settings.condensateHardness)} />
+                    <FormInput label="Condensate TDS (PPM)" name="condensateTds" type="number" value={form.condensateTds} onChange={handleChange} validationState={getValidationState(form.condensateTds, settings.condensateTds)} />
+                    <FormInput label="Condensate Ph (Ph)" name="condensatePh" type="number" value={form.condensatePh} onChange={handleChange} validationState={getValidationState(form.condensatePh, settings.condensatePh)} />
+                </Fieldset>
+
+                <Fieldset legend="Brewery Softeners">
+                    <FormToggle label="Hardness" name="brewerySoftenerHardness" value={form.brewerySoftenerHardness} options={['Soft', 'Hard']} onChange={handleToggleChange} />
+                    <FormInput label="Unit in Service" name="brewerySoftenerUnitInService" value={form.brewerySoftenerUnitInService} onChange={handleChange} >
+                        <option value={1}>1</option>
+                        <option value={2}>2</option>
+                    </FormInput>
+                </Fieldset>
+                
+                <Fieldset legend="Chemical Added">
+                    <FormInput label="NALCO 77211 (Lts)" name="nalco77211" type="number" value={form.nalco77211} onChange={handleChange} />
+                    <FormInput label="NexGuard 22310 (Lts)" name="nexGuard22310" type="number" value={form.nexGuard22310} onChange={handleChange} />
+                    <FormInput label="Water Added (Lts)" name="waterAdded" type="number" value={form.waterAdded} onChange={handleChange} />
+                </Fieldset>
+
+                <Fieldset legend="Ancillaries">
+                    <FormToggle label="Water Feed Pump" name="waterFeedPump" value={form.waterFeedPump} options={['Working', 'Not Working']} onChange={handleToggleChange} />
+                    <FormToggle label="Chemical Dosing Pump" name="chemicalDosingPump" value={form.chemicalDosingPump} options={['Working', 'Not Working']} onChange={handleToggleChange} />
+                    <FormToggle label="Flame Detector" name="flameDetector" value={form.flameDetector} options={['Working', 'Not Working']} onChange={handleToggleChange} />
+                    <FormToggle label="TDS Probe Check" name="tdsProbeCheck" value={form.tdsProbeCheck} options={['Checked', 'Not Checked']} onChange={handleToggleChange} />
+                </Fieldset>
+                
+                <Fieldset legend="Blowdown">
+                    <FormToggle label="Left Sight Glass" name="leftSightGlass" value={form.leftSightGlass} options={['Completed', 'Not Completed']} onChange={handleToggleChange} />
+                    <FormToggle label="Right Sight Glass" name="rightSightGlass" value={form.rightSightGlass} options={['Completed', 'Not Completed']} onChange={handleToggleChange} />
+                    <FormToggle label="Bottom Blowdown" name="bottomBlowdown" value={form.bottomBlowdown} options={['Completed', 'Not Completed']} onChange={handleToggleChange} />
+                </Fieldset>
+
+                <Fieldset legend="Effluent">
+                     <ToggleSwitch label="TOC Monitor Checked" name="tocMonitorChecked" value={form.tocMonitorChecked} onChange={handleChange} isBool />
+                     <ToggleSwitch label="Spot Sample Taken" name="spotSampleTaken" value={form.spotSampleTaken} onChange={handleChange} isBool />
+                     <ToggleSwitch label="Composite Sample Taken" name="compositeSampleTaken" value={form.compositeSampleTaken} onChange={handleChange} isBool />
+                </Fieldset>
+
+                <div className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-200">
+                    <div className="bg-slate-700 px-6 py-3">
+                        <h3 className="text-lg font-semibold text-white">Comments</h3>
                     </div>
-                    <div>
-                        <label htmlFor="time" className="block text-sm font-medium text-slate-600">Time</label>
-                        <input type="time" name="time" id="time" value={form.time} onChange={handleChange} required className={baseInputClasses} />
+                    <div className="p-6">
+                        <textarea name="commentText" value={form.commentText} onChange={handleChange} rows={4} className={baseInputClasses} placeholder="Add any relevant comments here..."></textarea>
                     </div>
-                    <div>
-                        <label htmlFor="sulphite" className="block text-sm font-medium text-slate-600">Sulphite (ppm)</label>
-                        <input type="number" name="sulphite" id="sulphite" value={form.sulphite} onChange={handleChange} required className={`${baseInputClasses} ${errors.sulphite ? errorInputClasses : ''}`} />
-                    </div>
-                    <div>
-                        <label htmlFor="alkalinity" className="block text-sm font-medium text-slate-600">Alkalinity (ppm)</label>
-                        <input type="number" name="alkalinity" id="alkalinity" value={form.alkalinity} onChange={handleChange} required className={`${baseInputClasses} ${errors.alkalinity ? errorInputClasses : ''}`} />
-                    </div>
-                    <div>
-                        <label htmlFor="hardness" className="block text-sm font-medium text-slate-600">Hardness</label>
-                        <select name="hardness" id="hardness" value={form.hardness} onChange={handleChange} required className={`${baseInputClasses} ${errors.hardness ? errorInputClasses : ''}`}>
-                            <option value="" disabled>Select hardness...</option>
-                            <option value="0">0 ppm (Soft)</option>
-                            <option value="1">1 ppm</option>
-                            <option value="2">2+ ppm (Hard)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="testedByUserId" className="block text-sm font-medium text-slate-600">Tested By</label>
-                        <select name="testedByUserId" id="testedByUserId" value={form.testedByUserId} onChange={handleChange} required className={baseInputClasses}>
-                            <option value="" disabled>Select User...</option>
-                            {settings.authorizedUsers.map(user => (
-                                <option key={user.id} value={user.id}>{user.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {settings.custom.map(param => (
-                        <div key={param.id}>
-                            <label htmlFor={param.id} className="block text-sm font-medium text-slate-600">{param.name} ({param.unit})</label>
-                            <input type="number" name={param.id} id={param.id} value={form.customFields[param.id]} onChange={handleCustomFieldChange} className={`${baseInputClasses} ${errors[param.id] ? errorInputClasses : ''}`} />
-                        </div>
-                    ))}
                 </div>
-                <div className="flex justify-end items-center">
-                    <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Entry</button>
+
+                <div className="flex justify-end items-center pt-4">
+                    <button type="submit" className="px-6 py-3 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 text-lg">Save Entry</button>
                 </div>
             </form>
         </div>
@@ -145,12 +281,12 @@ const WaterTestForm: React.FC<{ onAddWaterTest: NewEntryProps['onAddWaterTest'],
 };
 
 // --- Weekly Evaporation Form ---
-const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, name, value, onChange }) => (
+const ToggleSwitch: React.FC<{ label: string, name: string, value: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, isBool?: boolean }> = ({ label, name, value, onChange, isBool }) => (
     <div>
         <label className="block text-sm font-medium text-slate-600">{label}</label>
         <div className="mt-2 flex items-center">
              <input type="checkbox" name={name} checked={value} onChange={onChange} className="hidden"/>
-             <button type="button" onClick={() => onChange({ target: { name, value: !value, type: 'checkbox' } } as any)}
+             <button type="button" onClick={() => onChange({ target: { name, value: !value, type: 'checkbox', checked: !value } } as any)}
                 className={`${value ? 'bg-sky-600' : 'bg-slate-300'} relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500`}>
                 <span className={`${value ? 'translate-x-6' : 'translate-x-1'} inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}/>
             </button>
@@ -172,16 +308,12 @@ const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
+        const { name, value, type, checked } = e.target as HTMLInputElement;
         if (type === 'checkbox') {
-             setForm({ ...form, [name]: (e.target as HTMLInputElement).checked });
+             setForm({ ...form, [name]: checked });
         } else {
              setForm({ ...form, [name]: value });
         }
-    };
-    
-    const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -197,36 +329,40 @@ const WeeklyEvaporationForm: React.FC<{ onAddWeeklyEvaporationLog: NewEntryProps
     return (
         <div>
             <BackButton onClick={onBack} />
-            <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-lg shadow-md">
-                <PageTitle title="Weekly Evaporation Log" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="testDate" className="block text-sm font-medium text-slate-600">Test Date</label>
-                        <input type="date" name="testDate" id="testDate" value={form.testDate} onChange={handleChange} required className={baseInputClasses}/>
-                    </div>
-                    <div>
-                        <label htmlFor="testTime" className="block text-sm font-medium text-slate-600">Test Time</label>
-                        <input type="time" name="testTime" id="testTime" value={form.testTime} onChange={handleChange} required className={baseInputClasses}/>
-                    </div>
-                    <div className="md:col-span-2">
-                        <label htmlFor="operatorUserId" className="block text-sm font-medium text-slate-600">Operator</label>
-                        <select name="operatorUserId" id="operatorUserId" value={form.operatorUserId} onChange={handleChange} required className={baseInputClasses}>
-                            <option value="" disabled>Select User...</option>
-                            {settings.authorizedUsers.map(user => (
-                                <option key={user.id} value={user.id}>{user.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="md:col-span-2 space-y-4 pt-4 border-t border-slate-200">
-                        <ToggleSwitch label="Low Water Alarm Worked?" name="lowWaterAlarmWorked" value={form.lowWaterAlarmWorked} onChange={handleToggleChange} />
-                        <ToggleSwitch label="Low-Low Water Alarm Worked?" name="lowLowWaterAlarmWorked" value={form.lowLowWaterAlarmWorked} onChange={handleToggleChange} />
-                        <ToggleSwitch label="Test Completed?" name="testCompleted" value={form.testCompleted} onChange={handleToggleChange} />
-                    </div>
+             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-slate-200">
+                <div className="bg-slate-700 px-8 py-4">
+                    <h2 className="text-xl font-bold text-white">Weekly Evaporation Log</h2>
                 </div>
-                 <div className="flex justify-end items-center">
-                    <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Log</button>
-                </div>
-            </form>
+                <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label htmlFor="testDate" className="block text-sm font-medium text-slate-600">Test Date</label>
+                            <input type="date" name="testDate" id="testDate" value={form.testDate} onChange={handleChange} required className={baseInputClasses}/>
+                        </div>
+                        <div>
+                            <label htmlFor="testTime" className="block text-sm font-medium text-slate-600">Test Time</label>
+                            <input type="time" name="testTime" id="testTime" value={form.testTime} onChange={handleChange} required className={baseInputClasses}/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="operatorUserId" className="block text-sm font-medium text-slate-600">Operator</label>
+                            <select name="operatorUserId" id="operatorUserId" value={form.operatorUserId} onChange={handleChange} required className={baseInputClasses}>
+                                <option value="" disabled>Select User...</option>
+                                {settings.authorizedUsers.map(user => (
+                                    <option key={user.id} value={user.id}>{user.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="md:col-span-2 space-y-4 pt-4 border-t border-slate-200">
+                            <ToggleSwitch label="Low Water Alarm Worked?" name="lowWaterAlarmWorked" value={form.lowWaterAlarmWorked} onChange={handleChange} />
+                            <ToggleSwitch label="Low-Low Water Alarm Worked?" name="lowLowWaterAlarmWorked" value={form.lowLowWaterAlarmWorked} onChange={handleChange} />
+                            <ToggleSwitch label="Test Completed?" name="testCompleted" value={form.testCompleted} onChange={handleChange} />
+                        </div>
+                    </div>
+                     <div className="flex justify-end items-center">
+                        <button type="submit" className="px-6 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Save Log</button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };
@@ -274,7 +410,7 @@ const NewEntrySelection: React.FC<{ setView: (view: EntryView) => void }> = ({ s
 };
 
 // --- Main Component ---
-const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, settings, onSaveSuccess }) => {
+const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, onAddCommentLog, settings, onSaveSuccess }) => {
     const [view, setView] = useState<EntryView>('selection');
 
     const renderContent = () => {
@@ -282,7 +418,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporat
             case 'selection':
                 return <NewEntrySelection setView={setView} />;
             case 'waterTest':
-                return <WaterTestForm onAddWaterTest={onAddWaterTest} settings={settings} onBack={() => setView('selection')} onSaveSuccess={onSaveSuccess} />;
+                return <WaterTestForm onAddWaterTest={onAddWaterTest} onAddCommentLog={onAddCommentLog} settings={settings} onBack={() => setView('selection')} onSaveSuccess={onSaveSuccess} />;
             case 'dailyBlowdown':
                 return <PlaceholderForm title="Daily Blowdown Log" onBack={() => setView('selection')} />;
             case 'weeklyEvaporation':
@@ -298,7 +434,7 @@ const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporat
         }
     };
 
-    return <div className="max-w-4xl mx-auto">{renderContent()}</div>;
+    return <div className="max-w-7xl mx-auto">{renderContent()}</div>;
 };
 
 export default NewEntry;

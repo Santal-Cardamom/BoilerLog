@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { WaterTestEntry, TestParameters } from '../types';
+import { WaterTestEntry, TestParameters, ParameterRange } from '../types';
 import { XIcon } from './icons/XIcon';
 
 interface HistoryModalProps {
@@ -10,8 +10,30 @@ interface HistoryModalProps {
 }
 
 const ITEMS_PER_PAGE = 15;
+type ValidatedFields = keyof Omit<TestParameters, 'authorizedUsers' | 'hardness'>;
+
+const getValidationClasses = (
+    key: ValidatedFields,
+    value: number | undefined | null,
+    settings: TestParameters
+): string => {
+    // FIX: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+    if (value === null || value === undefined) return "text-slate-500";
+    
+    const numValue = Number(value);
+    if (isNaN(numValue)) return "text-slate-500";
+
+    const spec = settings[key] as ParameterRange | undefined;
+    if (!spec) return "text-slate-500";
+
+    if (numValue >= spec.min && numValue <= spec.max) {
+        return "text-green-600 font-bold";
+    }
+    return "text-red-600 font-bold";
+};
 
 const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, settings }) => {
+    // Note: Filters are not yet updated for all new fields. This can be a future enhancement.
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
@@ -19,14 +41,12 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
         sulphiteMax: '',
         alkalinityMin: '',
         alkalinityMax: '',
-        hardness: 'all',
     });
     const [filteredTests, setFilteredTests] = useState<WaterTestEntry[]>(allTests);
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (isOpen) {
-            // Reset filters and pagination when modal opens
             handleResetFilters();
         }
     }, [isOpen, allTests]);
@@ -47,23 +67,20 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
             data = data.filter(t => new Date(t.date + 'T00:00:00') <= endDate);
         }
         if (filters.sulphiteMin !== '') {
-            data = data.filter(t => t.sulphite >= Number(filters.sulphiteMin));
+            data = data.filter(t => (t.sulphite ?? 0) >= Number(filters.sulphiteMin));
         }
         if (filters.sulphiteMax !== '') {
-            data = data.filter(t => t.sulphite <= Number(filters.sulphiteMax));
+            data = data.filter(t => (t.sulphite ?? Infinity) <= Number(filters.sulphiteMax));
         }
         if (filters.alkalinityMin !== '') {
-            data = data.filter(t => t.alkalinity >= Number(filters.alkalinityMin));
+            data = data.filter(t => (t.alkalinity ?? 0) >= Number(filters.alkalinityMin));
         }
         if (filters.alkalinityMax !== '') {
-            data = data.filter(t => t.alkalinity <= Number(filters.alkalinityMax));
-        }
-        if (filters.hardness !== 'all') {
-            data = data.filter(t => t.hardness === Number(filters.hardness));
+            data = data.filter(t => (t.alkalinity ?? Infinity) <= Number(filters.alkalinityMax));
         }
         
         setFilteredTests(data);
-        setCurrentPage(1); // Reset to first page after filtering
+        setCurrentPage(1);
     };
 
     const handleResetFilters = () => {
@@ -74,7 +91,6 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
             sulphiteMax: '',
             alkalinityMin: '',
             alkalinityMax: '',
-            hardness: 'all',
         });
         setFilteredTests(allTests);
         setCurrentPage(1);
@@ -86,39 +102,6 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
     }, [currentPage, filteredTests]);
 
     const totalPages = Math.ceil(filteredTests.length / ITEMS_PER_PAGE);
-
-    const isOutOfSpec = (key: string, value: number): boolean => {
-         if (value === null || value === undefined) return false;
-         const numValue = Number(value);
-         if (isNaN(numValue)) return false;
-
-         switch(key) {
-            case 'sulphite': return numValue < Number(settings.sulphite.min) || numValue > Number(settings.sulphite.max);
-            case 'alkalinity': return numValue < Number(settings.alkalinity.min) || numValue > Number(settings.alkalinity.max);
-            case 'hardness': return numValue > Number(settings.hardness.max);
-            default:
-                const customParam = settings.custom.find(p => p.id === key);
-                if (customParam) {
-                    return numValue < Number(customParam.min) || numValue > Number(customParam.max);
-                }
-                return false;
-        }
-    };
-
-    const valueCellClasses = (key: string, value: number) => {
-        return isOutOfSpec(key, value) ? "text-red-600 font-bold" : "text-slate-500";
-    };
-
-    const getHardnessBadge = (hardness: number) => {
-        const isHardnessOutOfSpec = isOutOfSpec('hardness', hardness);
-        let badgeClasses = "px-2 inline-flex text-xs leading-5 font-semibold rounded-full ";
-        let text = "Hard";
-        if (hardness === 0) { badgeClasses += "bg-green-100 text-green-800"; text = "Soft"; } 
-        else if (hardness === 1) { badgeClasses += "bg-yellow-100 text-yellow-800"; text = "Medium"; } 
-        else { badgeClasses += "bg-red-100 text-red-800"; }
-        if (isHardnessOutOfSpec) { badgeClasses += " ring-2 ring-red-500 ring-offset-1"; }
-        return <span className={badgeClasses}>{text}</span>;
-    };
     
     const formatDate = (dateString: string) => new Date(dateString + 'T00:00:00').toLocaleDateString();
     
@@ -129,12 +112,14 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
     };
 
     const headerClasses = "px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider";
-
+    const cellClasses = "px-6 py-4 whitespace-nowrap text-sm";
+    const NA = <span className="text-slate-400">N/A</span>;
+    
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-            <div className="bg-slate-50 rounded-lg shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+            <div className="bg-slate-50 rounded-lg shadow-2xl w-full max-w-[95vw] h-[90vh] flex flex-col">
                 <header className="flex items-center justify-between p-4 border-b border-slate-200">
                     <h2 className="text-xl font-bold text-slate-800">Full Water Test History</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Close">
@@ -143,91 +128,81 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, allTests, 
                 </header>
 
                 <div className="p-4 border-b border-slate-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 items-end">
-                        {/* Date Filters */}
+                    {/* Filters remain simplified for now */}
+                    <div className="flex gap-4 items-end">
                         <div>
                             <label htmlFor="startDate" className="block text-sm font-medium text-slate-600">Start Date</label>
                             <input type="date" name="startDate" id="startDate" value={filters.startDate} onChange={handleFilterChange} className="mt-1 input-base"/>
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="endDate" className="block text-sm font-medium text-slate-600">End Date</label>
                             <input type="date" name="endDate" id="endDate" value={filters.endDate} onChange={handleFilterChange} className="mt-1 input-base"/>
                         </div>
-                        {/* Sulphite Filters */}
                         <div className="flex gap-2">
-                             <div>
-                                <label htmlFor="sulphiteMin" className="block text-sm font-medium text-slate-600">Sulphite Min</label>
-                                <input type="number" name="sulphiteMin" id="sulphiteMin" placeholder="e.g., 30" value={filters.sulphiteMin} onChange={handleFilterChange} className="mt-1 input-base"/>
-                            </div>
-                             <div>
-                                <label htmlFor="sulphiteMax" className="block text-sm font-medium text-slate-600">Sulphite Max</label>
-                                <input type="number" name="sulphiteMax" id="sulphiteMax" placeholder="e.g., 50" value={filters.sulphiteMax} onChange={handleFilterChange} className="mt-1 input-base"/>
-                            </div>
-                        </div>
-                        {/* Alkalinity Filters */}
-                         <div className="flex gap-2">
-                             <div>
-                                <label htmlFor="alkalinityMin" className="block text-sm font-medium text-slate-600">Alkalinity Min</label>
-                                <input type="number" name="alkalinityMin" id="alkalinityMin" placeholder="e.g., 350" value={filters.alkalinityMin} onChange={handleFilterChange} className="mt-1 input-base"/>
-                            </div>
-                             <div>
-                                <label htmlFor="alkalinityMax" className="block text-sm font-medium text-slate-600">Alkalinity Max</label>
-                                <input type="number" name="alkalinityMax" id="alkalinityMax" placeholder="e.g., 450" value={filters.alkalinityMax} onChange={handleFilterChange} className="mt-1 input-base"/>
-                            </div>
-                        </div>
-                        {/* Hardness Filter */}
-                         <div>
-                            <label htmlFor="hardness" className="block text-sm font-medium text-slate-600">Hardness</label>
-                            <select name="hardness" id="hardness" value={filters.hardness} onChange={handleFilterChange} className="mt-1 input-base">
-                                <option value="all">All</option>
-                                <option value="0">0 ppm (Soft)</option>
-                                <option value="1">1 ppm</option>
-                                <option value="2">2+ ppm (Hard)</option>
-                            </select>
-                        </div>
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                             <button onClick={handleApplyFilters} className="w-full px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Apply</button>
-                             <button onClick={handleResetFilters} className="w-full px-4 py-2 bg-slate-500 text-white font-semibold rounded-lg shadow-md hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400">Reset</button>
+                             <button onClick={handleApplyFilters} className="px-4 py-2 bg-sky-600 text-white font-semibold rounded-lg shadow-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">Apply</button>
+                             <button onClick={handleResetFilters} className="px-4 py-2 bg-slate-500 text-white font-semibold rounded-lg shadow-md hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400">Reset</button>
                         </div>
                     </div>
                 </div>
 
-                <main className="flex-1 overflow-y-auto">
+                <main className="flex-1 overflow-auto">
                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-200 sticky top-0">
+                        <thead className="bg-slate-200 sticky top-0 z-10">
                             <tr>
-                                <th className={headerClasses}>Date</th>
-                                <th className={headerClasses}>Time</th>
-                                <th className={headerClasses}>Sulphite (ppm)</th>
-                                <th className={headerClasses}>Alkalinity (ppm)</th>
-                                <th className={headerClasses}>Hardness</th>
-                                <th className={headerClasses}>Tested By</th>
-                                {settings.custom.map(param => (
-                                    <th key={param.id} className={headerClasses}>
-                                        {param.name} ({param.unit})
-                                    </th>
-                                ))}
+                                {/* Pinned columns for context */}
+                                <th scope="col" className={`${headerClasses} sticky left-0 bg-slate-200`}>Date</th>
+                                <th scope="col" className={`${headerClasses} sticky left-24 bg-slate-200`}>Time</th>
+                                <th scope="col" className={headerClasses}>Tested By</th>
+                                <th scope="col" className={headerClasses}>Boiler</th>
+
+                                {/* Water Tests */}
+                                <th scope="col" className={headerClasses}>Sulphite</th>
+                                <th scope="col" className={headerClasses}>Alkalinity</th>
+                                <th scope="col" className={headerClasses}>Boiler pH</th>
+                                <th scope="col" className={headerClasses}>TDS Probe</th>
+                                <th scope="col" className={headerClasses}>TDS Check</th>
+
+                                {/* Feed Water */}
+                                <th scope="col" className={headerClasses}>Feed Hardness</th>
+                                <th scope="col" className={headerClasses}>Feed pH</th>
+
+                                {/* Boiler Softeners */}
+                                <th scope="col" className={headerClasses}>Boiler Soft. Hardness</th>
+                                <th scope="col" className={headerClasses}>Boiler Soft. Unit</th>
+                                <th scope="col" className={headerClasses}>Litres to Regen</th>
+                                <th scope="col" className={headerClasses}>Salt Bags</th>
+                                
+                                {/* ... Add other headers as needed ... */}
+                                <th scope="col" className={headerClasses}>Comment</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-200">
                              {paginatedTests.length > 0 ? paginatedTests.slice().reverse().map((test) => (
                                 <tr key={test.id} className="hover:bg-slate-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{formatDate(test.date)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{test.time}</td>
-                                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses('sulphite', test.sulphite)}`}>{test.sulphite}</td>
-                                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses('alkalinity', test.alkalinity)}`}>{test.alkalinity}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getHardnessBadge(test.hardness)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{getUserNameById(test.testedByUserId)}</td>
-                                    {settings.custom.map(param => (
-                                        <td key={param.id} className={`px-6 py-4 whitespace-nowrap text-sm ${valueCellClasses(param.id, test.customFields?.[param.id])}`}>
-                                            {test.customFields?.[param.id] ?? 'N/A'}
-                                        </td>
-                                    ))}
+                                    <td className={`${cellClasses} sticky left-0 bg-white font-medium text-slate-900`}>{formatDate(test.date)}</td>
+                                    <td className={`${cellClasses} sticky left-24 bg-white text-slate-500`}>{test.time}</td>
+                                    <td className={`${cellClasses} text-slate-500`}>{getUserNameById(test.testedByUserId)}</td>
+                                    <td className={`${cellClasses} text-slate-500`}>{test.boilerName}</td>
+                                    
+                                    <td className={`${cellClasses} ${getValidationClasses('sulphite', test.sulphite, settings)}`}>{test.sulphite ?? NA}</td>
+                                    <td className={`${cellClasses} ${getValidationClasses('alkalinity', test.alkalinity, settings)}`}>{test.alkalinity ?? NA}</td>
+                                    <td className={`${cellClasses} ${getValidationClasses('boilerPh', test.boilerPh, settings)}`}>{test.boilerPh ?? NA}</td>
+                                    <td className={`${cellClasses} ${getValidationClasses('tdsProbeReadout', test.tdsProbeReadout, settings)}`}>{test.tdsProbeReadout ?? NA}</td>
+                                    <td className={`${cellClasses} ${getValidationClasses('tdsLevelCheck', test.tdsLevelCheck, settings)}`}>{test.tdsLevelCheck ?? NA}</td>
+
+                                    <td className={`${cellClasses} ${getValidationClasses('feedWaterHardness', test.feedWaterHardness, settings)}`}>{test.feedWaterHardness ?? NA}</td>
+                                    <td className={`${cellClasses} ${getValidationClasses('feedWaterPh', test.feedWaterPh, settings)}`}>{test.feedWaterPh ?? NA}</td>
+
+                                    <td className={`${cellClasses} ${getValidationClasses('boilerSoftenerHardness', test.boilerSoftenerHardness, settings)}`}>{test.boilerSoftenerHardness ?? NA}</td>
+                                    <td className={`${cellClasses} text-slate-500`}>{test.boilerSoftenerUnitInService ?? NA}</td>
+                                    <td className={`${cellClasses} text-slate-500`}>{test.boilerSoftenerLitresUntilRegen ?? NA}</td>
+                                    <td className={`${cellClasses} text-slate-500`}>{test.boilerSoftenerSaltBagsAdded ?? NA}</td>
+                                    
+                                    <td className={`${cellClasses} max-w-xs truncate text-slate-500`}>{test.commentText ?? NA}</td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={6 + settings.custom.length} className="text-center py-10 text-slate-500">No records match the current filters.</td>
+                                    <td colSpan={17} className="text-center py-10 text-slate-500">No records match the current filters.</td>
                                 </tr>
                             )}
                         </tbody>
