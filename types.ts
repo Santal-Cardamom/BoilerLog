@@ -95,6 +95,8 @@ export enum Page {
   Settings = 'Settings',
 }
 
+export type EntryView = 'selection' | 'waterTest' | 'dailyBlowdown' | 'weeklyEvaporation' | 'boilerStartUp' | 'boilerShutdown' | 'addComment';
+
 export interface ParameterRange {
   min: number;
   max: number;

@@ -4,7 +4,7 @@ import Header from './components/Header';
 import Summary from './pages/Summary';
 import NewEntry from './pages/NewEntry';
 import Settings from './pages/Settings';
-import { Page, WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog } from './types';
+import { Page, WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, EntryView } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import SuccessOverlay from './components/SuccessOverlay';
 
@@ -78,6 +78,12 @@ const App: React.FC = () => {
         hardness: { max: 0 },
     });
     const [isSuccessOverlayVisible, setIsSuccessOverlayVisible] = useState(false);
+    const [newEntryTarget, setNewEntryTarget] = useState<EntryView | null>(null);
+
+    const navigateToForm = (targetView: EntryView) => {
+        setNewEntryTarget(targetView);
+        setCurrentPage(Page.NewEntry);
+    };
 
     const showSuccessAndRedirect = () => {
         setIsSuccessOverlayVisible(true);
@@ -105,13 +111,13 @@ const App: React.FC = () => {
     const renderPage = () => {
         switch (currentPage) {
             case Page.Summary:
-                return <Summary waterTests={waterTests} settings={settings} />;
+                return <Summary waterTests={waterTests} weeklyEvaporationLogs={weeklyEvaporationLogs} settings={settings} navigateToForm={navigateToForm} />;
             case Page.NewEntry:
-                return <NewEntry onAddWaterTest={addWaterTest} onAddWeeklyEvaporationLog={addWeeklyEvaporationLog} onAddCommentLog={addCommentLog} settings={settings} onSaveSuccess={showSuccessAndRedirect} />;
+                return <NewEntry onAddWaterTest={addWaterTest} onAddWeeklyEvaporationLog={addWeeklyEvaporationLog} onAddCommentLog={addCommentLog} settings={settings} onSaveSuccess={showSuccessAndRedirect} newEntryTarget={newEntryTarget} clearNewEntryTarget={() => setNewEntryTarget(null)} />;
             case Page.Settings:
                 return <Settings currentSettings={settings} onSettingsSave={setSettings} />;
             default:
-                return <Summary waterTests={waterTests} settings={settings} />;
+                return <Summary waterTests={waterTests} weeklyEvaporationLogs={weeklyEvaporationLogs} settings={settings} navigateToForm={navigateToForm} />;
         }
     };
 

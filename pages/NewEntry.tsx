@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, ParameterRange } from '../types';
+import { WaterTestEntry, WeeklyEvaporationLog, TestParameters, CommentLog, ParameterRange, EntryView } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { DropletIcon } from '../components/icons/DropletIcon';
 import { FireIcon } from '../components/icons/FireIcon';
@@ -13,9 +13,10 @@ interface NewEntryProps {
     onAddCommentLog: (entry: Omit<CommentLog, 'id'>) => void;
     settings: TestParameters;
     onSaveSuccess: () => void;
+    newEntryTarget: EntryView | null;
+    clearNewEntryTarget: () => void;
 }
 
-type EntryView = 'selection' | 'waterTest' | 'dailyBlowdown' | 'weeklyEvaporation' | 'boilerStartUp' | 'boilerShutdown' | 'addComment';
 type ValidationState = 'default' | 'in-spec' | 'out-of-spec';
 
 // --- Reusable Components ---
@@ -410,8 +411,15 @@ const NewEntrySelection: React.FC<{ setView: (view: EntryView) => void }> = ({ s
 };
 
 // --- Main Component ---
-const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, onAddCommentLog, settings, onSaveSuccess }) => {
+const NewEntry: React.FC<NewEntryProps> = ({ onAddWaterTest, onAddWeeklyEvaporationLog, onAddCommentLog, settings, onSaveSuccess, newEntryTarget, clearNewEntryTarget }) => {
     const [view, setView] = useState<EntryView>('selection');
+
+    useEffect(() => {
+        if (newEntryTarget) {
+            setView(newEntryTarget);
+            clearNewEntryTarget();
+        }
+    }, [newEntryTarget, clearNewEntryTarget]);
 
     const renderContent = () => {
         switch (view) {
